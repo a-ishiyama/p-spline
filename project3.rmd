@@ -1,0 +1,7 @@
+```{r}
+pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngird=100){
+  
+}
+
+```
+

@@ -1,159 +1,51 @@
 ```{r}
+library(MASS)
+x<-mcycle[,1]
+y<-mcycle[,2]
+
 pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
+  lsp <- seq(logsp[1],logsp[2],length=ngrid)
+  edf <- gcv <- rep(0,ngrid)
   dk <- diff(range(x))/(k-bord)
   knots <- seq(min(x)-dk*bord,by=dk,length=k+bord+1) 
   X <- splines::splineDesign(knots,x,ord=bord+1,outer.ok=TRUE)
   D <- diff(diag(k),differences=pord)
+  
   idenk <- diag(k)
   crossD <- crossprod(D)
   p<-ncol(X);n <-nrow(X)
-  
   QR<-qr(X)
-  Q<-qr.Q(QR)
   R<-qr.R(QR)
-  invR<-solve(R)
-  invtranR<-t(invR)
-  rddr <- invtranR%*%crossD%*%invR
-  eigenrddr <-eigen(rddr)
-  evl <-eigenrddr$values
-  evc <-eigenrddr$vectors
   
-  lsp <- seq(logsp[1],logsp[2],length=ngrid)
-  edf <- gcv <- rep(0,ngrid)
+  AR <-forwardsolve(t(R),crossD)
+  A <-forwardsolve(t(R), t(AR))
+  ep <- eigen(A)
+  evl <-diag(ep$values)
+  evc <-ep$vectors
+  
   for (i in 1:ngrid){
-    core <- idenk + exp(lsp[i])*evl
-    coreinv<- solve(core)
-    edf[i]<-sum(diag(coreinv))
-    comp <-invR%*%evc%*%coreinv%*%t(evc)
-    beta <- backsolve(comp,qr.qty(QR,y))
+    core <- (idenk + exp(lsp[i])*evl)
+    edf[i]<-sum(1/diag(core))
+    QRnewcore<-qr(t(R)%*%evc%*%core%*%t(evc)%*%R)
+    cholnewcore <-qr.R(QRnewcore)
+    beta <- backsolve(cholnewcore, qr.qty(QRnewcore,t(X)%*%y)[1:p])
     y_hat <-X%*%beta
     sigma <- sum((y-y_hat)^2)/(n-edf[i])
     gcv[i]<-sigma/(n-edf[i])
   }
-  i.opt<-max(which(gcv==min(gcv)))
-  core <- idenk + exp(lsp[i.opt])*evl
-  coreinv<- solve(core)
-  eddf<-sum(diag(coreinv))
-  comp <-invR%*%evc%*%coreinv%*%t(evc)
-  beta <- backsolve(comp,qr.qty(QR,y))
+  
+  i.opt<-which(gcv==min(gcv))
+  core <- (idenk + exp(lsp[i.opt])*evl)
+  QRnewcore<-qr(t(R)%*%evc%*%core%*%t(evc)%*%R)
+  cholnewcore <-qr.R(QRnewcore)
+  beta <- backsolve(cholnewcore, qr.qty(QRnewcore,t(X)%*%y)[1:p])
   y_hat <-X%*%beta
-  sigma <- sum((y-y_hat)^2)/(n-eddf)^2
-  yy<-y-y_hat
-  list(beta,y_hat,sigma)
-  plot(x,y)
-  plot(x,y_hat)
-  list(beta=beta,yhat=y_hat,sigma=sigma,eddf,i.opt)
+  sigma <- sum((y-y_hat)^2)/(n-edf[i.opt])
+  plot(x,y,col="red")
+  plot(x,y_hat,col="blue")
+  list(beta,y_hat,sigma,edf[i.opt],gcv[i.opt])
 }
-
-```
-
-```{r}
-library(MASS)
-x<-mcycle[,1]
-y<-mcycle[,2]
-plot(x,y)
 pspline(x,y)
-```
 
-```{r}
-#x<-matrix(1:100,100,1); y<-matrix(1:100,100,1)
-x<-mcycle[,1]
-y<-mcycle[,2]
-lsp <- seq(-5,5,length=100)
-k<-20
-bord<-3
-pord<-2
-dk <- diff(range(x))/(k-bord)
-knots <- seq(min(x)-dk*bord,by=dk,length=k+bord+1) 
-X <- splines::splineDesign(knots,x,ord=bord+1,outer.ok=TRUE)
-D <- diff(diag(k),differences=pord)
-iden <- diag(20)
-p<-ncol(X)
-n <-nrow(X)
-QR<-qr(X)
-Q<-qr.Q(QR)
-R<-qr.R(QR)
-Rinv <- solve(R)
-cross <-crossprod(D)
-Rinvtran<-t(Rinv)
-pen <- Rinvtran%*%cross%*%Rinv
-ep <- eigen(pen)
-evc <- ep$vectors
-evl<- ep$values
-beta<-c()
-trK <- rep(0,100)
-gcv <- rep(0,100)
-for (i in 1:length(lsp)){
-  core<- iden+exp(lsp[i])*evl
-  coreinv<- solve(core)
-  trK<-sum(diag(coreinv))
-  be<-Rinv%*%evc%*%coreinv%*%t(evc)
-  beta<- backsolve(be,qr.qty(QR,y))
-  y_hat <-X%*%beta
-  sigma <- sum((y-y_hat)^2)/(n-trK)
-  gcv[i]<-sigma/(n-trK)
-}
-i.opt<-max(which(gcv==max(gcv)))
-gcv
-```
-
-```{r}
-x<-matrix(1:100,100,1); y<-matrix(1:100,100,1)
-lsp <- seq(-5,5,length=100)
-k<-20
-bord<-3
-pord<-2
-dk <- diff(range(x))/(k-bord)
-knots <- seq(min(x)-dk*bord,by=dk,length=k+bord+1) 
-X <- splines::splineDesign(knots,x,ord=bord+1,outer.ok=TRUE)
-D <- diff(diag(k),differences=pord)
-iden <- diag(20)
-p<-ncol(X)
-QR<-qr(X)
-Q<-qr.Q(QR)
-R<-qr.R(QR)
-Rinv <- solve(R)
-cross <-crossprod(D)
-Rinvtran<-t(Rinv)
-pen <- Rinvtran%*%cross%*%Rinv
-ep <- eigen(pen)
-evc <- ep$vectors
-evl<- ep$values
-beta<-matrix(0,100,20)
-trK <- matrix(0,100,1)
-core<- iden+exp(lsp[10])*evl
-coreinv<- solve(core)
-trK<-sum(diag(coreinv))
-be<-Rinv%*%evc%*%coreinv%*%t(evc)
-beta<- backsolve(be,qr.qty(QR,y))
-beta
-trK
-```
-
-```{r}
-a1 <- c(3, 2, 5)
-a2 <- c(2, 3, 2)
-a3 <- c(5, 2, 4)
-a4 <- c(1,5)
-
-# bind the three vectors into a matrix 
-# using rbind() which is basically
-# row-wise binding.
-A <- rbind(a1, a2, a3)
-AA <- solve(A)
-a <- A%*%AA
-AAA <- t(A)
-aa <- A%*%AAA%*%AA%*%AA
-aa
-diff(range(a4))
-```
-
-```{r}
-l <- c(-5,5)
-g <- 100
-lsp <- seq(l[1],l[2],length=g)
-library(MASS)
-x<-matrix(rnorm(1:6),2,3)
-xx <- solve(x);xx
 ```
 

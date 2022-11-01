@@ -2,10 +2,16 @@
 library(MASS)
 x<-mcycle[,1]
 y<-mcycle[,2]
+```
+
+
+```{r}
+#Q1
 
 pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
   lsp <- seq(logsp[1],logsp[2],length=ngrid)
   edf <- gcv <- rep(0,ngrid)
+  
   dk <- diff(range(x))/(k-bord)
   knots <- seq(min(x)-dk*bord,by=dk,length=k+bord+1) 
   X <- splines::splineDesign(knots,x,ord=bord+1,outer.ok=TRUE)
@@ -41,11 +47,49 @@ pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
   beta <- backsolve(cholnewcore, qr.qty(QRnewcore,t(X)%*%y)[1:p])
   y_hat <-X%*%beta
   sigma <- sum((y-y_hat)^2)/(n-edf[i.opt])
+  r2 <- 1 - ((n-1)*sigma)/sum((y-mean(y))^2)
   plot(x,y,col="red")
   plot(x,y_hat,col="blue")
-  list(beta,y_hat,sigma,edf[i.opt],gcv[i.opt])
+  list(b.hat=beta,y.hat=y_hat,sigma=sigma,edf=edf[i.opt],gcv=gcv[i.opt],knots=knots,number.of.coefficients=k, r2=r2, b.order=bord, p.order=pord)
 }
-pspline(x,y)
+
+demo <-pspline(x,y);demo
+```
+
+```{r}
+#Q2
+
+print.pspline<- function(m){
+  print(Effective degree of freedom)
+  r2 <- 1 - ((n-1)*sigma)/sum((y-mean(y))^2)
+}
 
 ```
+
+```{r}
+#Q3
+
+predict.pspline <- function(m,x,se=TRUE){
+  Xp<- splines::splineDesign(knots=unlist(m["knots"]),x,ord=unlist(m["b.order"])+1,outer.ok=TRUE)
+  prediction <- Xp%*%unlist(m["b.hat"])
+  if (se==FALSE){
+    list(prediction=prediction)
+  }else{
+    sigma_matrix <- diag(unlist(m["sigma"]),unlist(m["number.of.coefficients"]))
+    cholXp <- chol(crossprod(Xp))
+    covariance_matrix <-backsolve(cholXp, forwardsolve(t(cholXp),sigma_matrix))
+    se <- rowSums(Xp*(Xp%*%covariance_matrix))^0.5
+    list(prediction=prediction,se=se)
+  }
+}
+
+demo3<-predict.pspline(demo,x);demo3
+```
+
+```{r}
+#Q4
+
+
+```
+
 

@@ -98,8 +98,8 @@ plot.pspline <- function(m){
   
   plot(m$x,m$y)
   lines(m$x,m$y.hat)
-  lines(m$x,upper)
-  lines(m$x,lower)
+  lines(m$x,upper, lty=3)
+  lines(m$x,lower, lty=3)
   
   plot(m$y.hat, m$residual, main="Model residuals against fitted values", xlab="fitted value", ylab="model residuals")
   abline(h=0)

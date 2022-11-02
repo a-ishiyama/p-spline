@@ -49,7 +49,8 @@ pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
   sigma <- sum((y-y_hat)^2)/(n-edf[i.opt])
   r2 <- 1 - ((n-1)*sigma)/sum((y-mean(y))^2)
   residual <- y-y_hat
-  list(b.hat=beta,y.hat=y_hat,sigma=sigma,edf=edf[i.opt],gcv=gcv[i.opt],knots=knots,number.of.coefficients=k, r2=r2, b.order=bord, p.order=pord, residual=residual, x=x, y=y)
+  class='pspline'
+  list(coef=beta,fitted=y_hat,sig2=sigma, edf=edf[i.opt],gcv=gcv[i.opt],knots=knots,number.of.coefficients=k, r2=r2, b.order=bord, p.order=pord, residual=residual, x=x, y=y, lsp=exp(lsp[i.opt]), D=D)
 }
 
 demo <-pspline(x,y);demo
@@ -59,10 +60,13 @@ demo <-pspline(x,y);demo
 #Q2
 
 print.pspline<- function(m){
-  print(Effective degree of freedom)
-  r2 <- 1 - ((n-1)*sigma)/sum((y-mean(y))^2)
+  cat('Order',m$b.order,'p-spline with order',m$p.order, "penalty", "\n")
+  cat("Effective degrees of freedom:",m$edf,"   Coefficients:",m$number.of.coefficients, "\n")
+  cat("residual std dev:",m$sig2^0.5,"   r-squared:",m$r2, "   GCV:", m$gcv)
+  invisible(c(m$gcv, m$edf, m$r2))
 }
 
+print.pspline(demo)
 ```
 
 ```{r}
@@ -70,14 +74,15 @@ print.pspline<- function(m){
 
 predict.pspline <- function(m,x,se=TRUE){
   Xp<- splines::splineDesign(knots=m$knots,x,ord=m$b.order+1,outer.ok=TRUE)
-  prediction <- Xp%*%m$b.hat
+  prediction <- Xp%*%m$coef
   if (se==FALSE){
     list(prediction=prediction)
   }else{
-    sigma_matrix <- diag(m$sigma,m$number.of.coefficients)
-    cholXp <- chol(crossprod(Xp))
+    sigma_matrix <- diag(m$sig2,m$number.of.coefficients)
+    cholXp <- chol(crossprod(Xp)+(m$lsp*crossprod(m$D)))
     covariance_matrix <-backsolve(cholXp, forwardsolve(t(cholXp),sigma_matrix))
     se <- rowSums(Xp*(Xp%*%covariance_matrix))^0.5
+    invisible(list(x=x))
     list(prediction=prediction,se=se)
   }
 }
@@ -92,26 +97,25 @@ plot.pspline <- function(m){
   lower <-c(0,length(m$y))
   for (i in 1:length(m$y)){
     t_value <- qt(0.975, df=length(m$y)-m$number.of.coefficients) #what should be the dof?
-    upper[i] <- m$y.hat[i] + t_value* predict.pspline(m, m$x)$se[i]
-    lower[i] <- m$y.hat[i] - t_value* predict.pspline(m, m$x)$se[i]
+    upper[i] <- m$fitted[i] + t_value* predict.pspline(m, m$x)$se[i]
+    lower[i] <- m$fitted[i] - t_value* predict.pspline(m, m$x)$se[i]
   }
   
   plot(m$x,m$y)
-  lines(m$x,m$y.hat)
+  lines(m$x,m$fitted)
   lines(m$x,upper, lty=3)
   lines(m$x,lower, lty=3)
   
-  plot(m$y.hat, m$residual, main="Model residuals against fitted values", xlab="fitted value", ylab="model residuals")
+  plot(m$fitted, m$residual, main="Model residuals against fitted values", xlab="fitted value", ylab="model residuals")
   abline(h=0)
   
   qqnorm(m$residual)
   qqline(m$residual,distribution = qnorm)
   
-  list(cbind(ll=lower,yhat=m$y.hat,ul=upper,x=m$x))
+  invisible(list(cbind(ll=lower,yhat=m$fitted,ul=upper,x=m$x)))
 }
 
 plot.pspline(demo)
 ```
-
 
 

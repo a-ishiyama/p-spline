@@ -48,12 +48,15 @@ pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
   y_hat <-X%*%beta
   sigma <- sum((y-y_hat)^2)/(n-edf[i.opt])
   r2 <- 1 - ((n-1)*sigma)/sum((y-mean(y))^2)
+  residual <- y-y_hat
   plot(x,y,col="red")
-  plot(x,y_hat,col="blue")
-  list(b.hat=beta,y.hat=y_hat,sigma=sigma,edf=edf[i.opt],gcv=gcv[i.opt],knots=knots,number.of.coefficients=k, r2=r2, b.order=bord, p.order=pord)
+  lines(x,y_hat,col="blue")
+  list(b.hat=beta,y.hat=y_hat,sigma=sigma,edf=edf[i.opt],gcv=gcv[i.opt],knots=knots,number.of.coefficients=k, r2=r2, b.order=bord, p.order=pord, residual=residual, x=x, y=y)
 }
-
+#Rprof()
 demo <-pspline(x,y);demo
+#Rprof(NULL)
+#summaryRprof()
 ```
 
 ```{r}
@@ -70,12 +73,12 @@ print.pspline<- function(m){
 #Q3
 
 predict.pspline <- function(m,x,se=TRUE){
-  Xp<- splines::splineDesign(knots=unlist(m["knots"]),x,ord=unlist(m["b.order"])+1,outer.ok=TRUE)
-  prediction <- Xp%*%unlist(m["b.hat"])
+  Xp<- splines::splineDesign(knots=m$knots,x,ord=m$b.order+1,outer.ok=TRUE)
+  prediction <- Xp%*%m$b.hat
   if (se==FALSE){
     list(prediction=prediction)
   }else{
-    sigma_matrix <- diag(unlist(m["sigma"]),unlist(m["number.of.coefficients"]))
+    sigma_matrix <- diag(m$sigma,m$number.of.coefficients)
     cholXp <- chol(crossprod(Xp))
     covariance_matrix <-backsolve(cholXp, forwardsolve(t(cholXp),sigma_matrix))
     se <- rowSums(Xp*(Xp%*%covariance_matrix))^0.5
@@ -83,13 +86,54 @@ predict.pspline <- function(m,x,se=TRUE){
   }
 }
 
-demo3<-predict.pspline(demo,x);demo3
+predict.pspline(demo,x)
 ```
 
 ```{r}
 #Q4
+plot.pspline <- function(m){
+  upper <-c(0,length(m$y))
+  lower <-c(0,length(m$y))
+  for (i in 1:length(m$y)){
+    t_value <- qt(0.975, df=length(m$y)-m$number.of.coefficients) #what should be the dof?
+    upper[i] <- m$y.hat[i] + t* predict.pspline(m,m$x)$se[i]
+    lower[i] <- m$y.hat[i] - t* predict.pspline(m,m$x)$se[i]
+  }
+  plot(m$x,m$y)
+  lines(m$x,m$y.hat)
+  lines(m$x,upper)
+  lines(m$x,lower)
+  
+  plot(m$y.hat, m$residual, main="Model residuals against fitted values", xlab="fitted value", ylab="model residuals")
+  abline(h=0)
+  
+  qqnorm(m$residual)
+  qqline(m$residual,distribution = qnorm)
+  
+  list(cbind(ll=lower,yhat=m$y.hat,ul=upper,x=m$x))
+}
 
+plot.pspline(demo)
+```
+
+```{r}
+plot(y~x)
+lines(x,demo$y.hat)
+#predict.pspline(demo,x)$se[6]
+upper <-c(0,length(predict.pspline(demo,x)$prediction))
+lower <-c(0,length(predict.pspline(demo,x)$prediction))
+for (i in 1:length(predict.pspline(demo,x)$prediction)){
+  t <-qt(0.975, df=length(predict.pspline(demo,x)$prediction)-1)
+  upper[i] <- predict.pspline(demo,x)$prediction[i] + t*predict.pspline(demo,x)$se[i]
+  lower[i] <- predict.pspline(demo,x)$prediction[i] - t*predict.pspline(demo,x)$se[i]
+}
+lines(x,upper)
+lines(x,lower)
 
 ```
 
+```{r}
+qt(0.975,df=1)
+qnorm(0.975)
+```
 

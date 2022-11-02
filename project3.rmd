@@ -49,14 +49,10 @@ pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
   sigma <- sum((y-y_hat)^2)/(n-edf[i.opt])
   r2 <- 1 - ((n-1)*sigma)/sum((y-mean(y))^2)
   residual <- y-y_hat
-  plot(x,y,col="red")
-  lines(x,y_hat,col="blue")
   list(b.hat=beta,y.hat=y_hat,sigma=sigma,edf=edf[i.opt],gcv=gcv[i.opt],knots=knots,number.of.coefficients=k, r2=r2, b.order=bord, p.order=pord, residual=residual, x=x, y=y)
 }
-#Rprof()
+
 demo <-pspline(x,y);demo
-#Rprof(NULL)
-#summaryRprof()
 ```
 
 ```{r}
@@ -96,9 +92,10 @@ plot.pspline <- function(m){
   lower <-c(0,length(m$y))
   for (i in 1:length(m$y)){
     t_value <- qt(0.975, df=length(m$y)-m$number.of.coefficients) #what should be the dof?
-    upper[i] <- m$y.hat[i] + t* predict.pspline(m,m$x)$se[i]
-    lower[i] <- m$y.hat[i] - t* predict.pspline(m,m$x)$se[i]
+    upper[i] <- m$y.hat[i] + t_value* predict.pspline(m, m$x)$se[i]
+    lower[i] <- m$y.hat[i] - t_value* predict.pspline(m, m$x)$se[i]
   }
+  
   plot(m$x,m$y)
   lines(m$x,m$y.hat)
   lines(m$x,upper)
@@ -116,24 +113,5 @@ plot.pspline <- function(m){
 plot.pspline(demo)
 ```
 
-```{r}
-plot(y~x)
-lines(x,demo$y.hat)
-#predict.pspline(demo,x)$se[6]
-upper <-c(0,length(predict.pspline(demo,x)$prediction))
-lower <-c(0,length(predict.pspline(demo,x)$prediction))
-for (i in 1:length(predict.pspline(demo,x)$prediction)){
-  t <-qt(0.975, df=length(predict.pspline(demo,x)$prediction)-1)
-  upper[i] <- predict.pspline(demo,x)$prediction[i] + t*predict.pspline(demo,x)$se[i]
-  lower[i] <- predict.pspline(demo,x)$prediction[i] - t*predict.pspline(demo,x)$se[i]
-}
-lines(x,upper)
-lines(x,lower)
 
-```
-
-```{r}
-qt(0.975,df=1)
-qnorm(0.975)
-```
 

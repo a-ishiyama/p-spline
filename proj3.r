@@ -1,14 +1,15 @@
-```{r}
+
 library(MASS)
 x<-mcycle[,1]
 y<-mcycle[,2]
-```
 
 
-```{r}
 #Q1
 
 pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
+  x<-x[order(x)]
+  y<-y[order(x)]
+    
   lsp <- seq(logsp[1],logsp[2],length=ngrid)
   edf <- gcv <- rep(0,ngrid)
   
@@ -54,31 +55,30 @@ pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
   best_fit_list
 }
 
-demo <-pspline(x,y)
-demo
-```
+ok <-pspline(x,y)
 
-```{r}
+
 #Q2
 
 print.pspline<- function(m){
   cat('Order', m$b.order,'p-spline with order',m$p.order, "penalty", "\n")
   cat("Effective degrees of freedom:",m$edf,"   Coefficients:",m$number.of.coefficients, "\n")
   cat("residual std dev:",m$sig2^0.5,"   r-squared:",m$r2, "   GCV:", m$gcv)
+  
   print_list<-list(m$gcv, m$edf, m$r2)
   invisible(print_list)
 }
 
-print(demo)
-```
+print(ok)
 
-```{r}
+
 #Q3
 
 predict.pspline <- function(m,x,se=TRUE){
-  order(x)
+  x<-x[order(x)]
   Xp<- splines::splineDesign(knots=m$knots,x,ord=m$b.order+1,outer.ok=TRUE)
   prediction <- Xp%*%m$coef
+  
   if (se==FALSE){
     list(prediction=prediction)
   }else{
@@ -90,36 +90,36 @@ predict.pspline <- function(m,x,se=TRUE){
   }
 }
 
-predict(demo,x)
-```
+predict(ok,x)
 
-```{r}
+
+
 #Q4
 plot.pspline <- function(m){
   upper <-c(0,length(m$y))
   lower <-c(0,length(m$y))
   for (i in 1:length(m$y)){
-    t_value <- qt(0.975, df=length(m$y)-m$number.of.coefficients) #what should be the dof?
-    upper[i] <- m$fitted[i] + t_value* m$sig2^0.5
-    lower[i] <- m$fitted[i] - t_value* m$sig2^0.5
+    t_value <- qt(0.975, df=length(m$y)-m$number.of.coefficients)
+    upper[i] <- m$fitted[i] + t_value* predict.pspline(m, m$x)$se[i]
+    lower[i] <- m$fitted[i] - t_value* predict.pspline(m, m$x)$se[i]
   }
   
-  plot(m$x,m$y)
-  lines(m$x,m$fitted)
-  lines(m$x,upper, lty=3)
-  lines(m$x,lower, lty=3)
+  plot(m$x,m$y,main="Original data with the estimated smooth function", xlab="x", ylab="y")
+  lines(m$x,m$fitted, col="red")
+  lines(m$x,upper, lty=3, col="blue")
+  lines(m$x,lower, lty=3, col="blue")
+  legend(35, -95, legend=c("estimated smooth function", "95% credible intervals"),col=c("red", "blue"), lty=1:2, cex=0.8)
   
   plot(m$fitted, m$residual, main="Model residuals against fitted values", xlab="fitted value", ylab="model residuals")
   abline(h=0)
   
   qqnorm(m$residual)
-  qqline(m$residual,distribution = qnorm)
+  qqline(m$residual)
   
   plot_list<-list(cbind(ll=lower,ul=upper,x=m$x))
   invisible(plot_list)
 }
 
-plot(demo)
-```
+plot(ok)
 
 

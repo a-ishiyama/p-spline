@@ -108,7 +108,7 @@ plot.pspline <- function(m){
   lines(m$x,m$fitted, col="red")
   lines(m$x,upper, lty=3, col="blue")
   lines(m$x,lower, lty=3, col="blue")
-  legend(35, -95, legend=c("estimated smooth function", "95% credible intervals"),col=c("red", "blue"), lty=1:2, cex=0.8)
+  legend(30, -95, legend=c("estimated smooth function", "95% credible intervals"),col=c("red", "blue"), lty=1:2)
   
   plot(m$fitted, m$residual, main="Model residuals against fitted values", xlab="fitted value", ylab="model residuals")
   abline(h=0)

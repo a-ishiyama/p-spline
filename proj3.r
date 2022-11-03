@@ -107,7 +107,7 @@ predict.pspline <- function(m,x,se=TRUE){
 plot.pspline <- function(m){
   #
   
-  x_4 <- seq(m$x[1],m$x[length(m$x)], length=1000)
+  x_4 <- seq(m$x[1],m$x[length(m$x)], length=length(m$x))
   
   upper <- lower <-c()
   # Create vectors containing observation numbers of 0s to later save the upper

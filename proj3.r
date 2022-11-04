@@ -3,13 +3,48 @@
 
 #   The following codes produce a class and related useful method function for
 # estimating a smoothing function with basis expansion and penalties.
-#   The class is named 'pspline' which 
+#   When given a set of observation containing explanatory variable x and 
+# explained variable y, the user of this class can set their desired order for 
+# B-spline basis function, to approximate the smooth function using basis
+# function. The user can also  set the number of basis function to use. Given 
+# that this basis approximation is flexible and able to capture a wide range of 
+# function complexities, there is a possibility that the user may fall on the
+# trap of over-fitting. To avoid such a danger, the user of this class can also
+# impose a smooth penalty on the coefficients to encourage the estimated fit to
+# vary smoothly, instead of capturing random noises and turning into a rather 
+# wiggly fit. This class function will automatically selects the best smoothing
+# parameter (the penalty), by searching for the optimal value based on the 
+# generalised cross validation criterion. 
+#   The class pspline comes with three method function, the first being print().
+# This method function prints some of the crucial information to be obtained
+# by using the class pspline, such as the residual standard deviation and 
+# r-squared. This helps the user to understand the output in a clean manner.
+#   The predict() method function enables the user the predict a new set of
+# fitted values using the estimated coefficients from pspline and a new set of 
+# x observation data. Depending on the users' need, this method function can 
+# also return the standard errors of the fitted values.
+#   The plot() method function enables the user to check the assumption
+
 
 
 pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
-  #   The following set of codes computes a class 'pspline' which estimates the 
+  #   The following set of codes computes a class "pspline" which estimates the 
   # estimated best fit smooth line for a set of given data x and y.
-  #   hh.
+  #   The function takes argument of the original x and y data vectors, "k", the 
+  # number of basis function to use, "logsp", the ends of the interval over
+  # which to search for the smoothing parameter (in log scale), "bord", the 
+  # B-spline order, "pord", the order of difference to use in the penalty, and 
+  # "ngrid", the number of smoothing parameter to try.
+  #   The steps are that first the X matrix is created to be used to estimate 
+  # the coefficient against y. This X matrix contains the observation number of
+  # rows and coefficient number of columns, in this case, 20. Then, based on the
+  # original mathematical equation to derive the estimated coefficients, rewrite
+  # an alternative expression that enables a more efficient computation using
+  # eigen decomposition. QR decomposition is used for this efficient method, 
+  # and a loop is run to search for the best smoothing parameter that has the 
+  # lowest generalised cross validation criterion score. The returned estimated
+  # coefficients, fitted value, and residual variance are computed based on this
+  # best smoothing parameter.
 
   lsp <- seq(logsp[1],logsp[2],length=ngrid)
   # Create a vector with numbers ranging from the lower end to the
@@ -19,10 +54,15 @@ pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
   # Save two empty vectors to later insert the obtained effective degree of
   # freedom and generalised cross validation criterion score.
   
+  # The following set of codes computes the X matrix based on the given x data
+  # vector.
   dk <- diff(range(x))/(k-bord)
   knots <- seq(min(x)-dk*bord,by=dk,length=k+bord+1) 
   X <- splines::splineDesign(knots,x,ord=bord+1,outer.ok=TRUE)
   D <- diff(diag(k),differences=pord)
+  # D matrix here is used to create a matrix that represents the penalty on the
+  # estimated coefficient when the best fit line is calculated. The estimated
+  # coefficients are hence derived based on the penalized least squares method.
   
   idenk <- diag(k) # Create an identity matrix with k number of rows.
   crossD <- crossprod(D) # Cross product of D matrix for later use.
@@ -51,14 +91,24 @@ pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
     # Core here refer to value obtained by the addition of identity matrix with
     # the multiplication of smoothing parameter and the previously calculated
     # eigenvalue. The smoothing parameter is expressed in the exponential form
-    # as 
+    # as the logsp argument set here by the user is assumed to be in log scale.
     edf[i]<-sum(1/diag(core))
     # Effective degree of freedom is used instead of conventional degree of
     # freedom as the estimated smooth function can vary from being a very 
     # wiggly to a straight line depending on the smoothing parameter.
     QRnewcore<-qr(t(R)%*%evc%*%core%*%t(evc)%*%R)
-    cholnewcore <-qr.R(QRnewcore)
-    beta <- backsolve(cholnewcore, qr.qty(QRnewcore,t(X)%*%y)[1:p])
+    # "QRnewcore" here represents QR decomposition of the product of 
+    # (X^T*X+lambda*D^T*D) from the derivation of coefficients, written in a 
+    # difference equation. This method, instead of plainly computing 
+    # (X^T*X+lambda*D^T*D), is used because it enables a more efficient 
+    # computation. It follows that such QR decomposition enables a much more
+    # efficient computation of the inverse of (X^T*X+lambda*D^T*D).
+    newcoreR <-qr.R(QRnewcore)
+    # Save the R component from the aforementioned QR decomposition.
+    beta <- backsolve(newcoreR, qr.qty(QRnewcore,t(X)%*%y)[1:p])
+    # Coefficients are derived by backsolving the R component of the QR
+    # decomposition to the product of Q component and the transpose of X matrix
+    # and the y data vector.
     y_hat <-X%*%beta
     # Fitted value is obtained by multiplying the X matrix with the 
     # coefficients.
@@ -78,8 +128,8 @@ pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
   # same steps as when searching for the optimal smoothing parameter. 
   # This set of step is repeated to compute the optimal coefficients.
   QRnewcore<-qr(t(R)%*%evc%*%core%*%t(evc)%*%R)
-  cholnewcore <-qr.R(QRnewcore)
-  beta <- backsolve(cholnewcore, qr.qty(QRnewcore,t(X)%*%y)[1:p])
+  newcoreR <-qr.R(QRnewcore)
+  beta <- backsolve(newcoreR, qr.qty(QRnewcore,t(X)%*%y)[1:p])
   # Estimate the optimal coefficient.
   y_hat <-X%*%beta
   # Save the predicted value by multiplying the X data with the corresponding
@@ -95,27 +145,27 @@ pspline <- function(x,y,k=20,logsp=c(-5,5),bord=3,pord=2,ngrid=100){
                         r2=r2, b.order=bord, p.order=pord, residual=residual, 
                         x=x, y=y, lsp=exp(lsp[i.opt]), D=D)
   # Save information that is critical in the following construction of the 
-  # method functions as 'best_fit_line'.
+  # method functions as "best_fit_line".
   class(best_fit_list)="pspline" 
-  # Defines the class of what is to be returned from this function as 'pspline'
+  # Defines the class of what is to be returned from this function as "pspline"
   best_fit_list 
 }
 
 
 
 print.pspline<- function(m){
-  #   This function defines the method function print() for the class 'pspline'.
+  #   This function defines the method function print() for the class "pspline".
   #   It prints the essential information in understanding the estimated model,
   # including the order of B-spline and penalty, effective degree of freedom,
   # number of estimated coefficients, residual standard deviation, r-squared,
   # and the generalised cross validation criterion. 
   #   It also silently returns a list containing gcv, edf, and r2.
   
-  cat('Order', m$b.order,'p-spline with order',m$p.order, "penalty", "\n")
+  cat("Order", m$b.order, "p-spline with order", m$p.order, "penalty", "\n")
   # These three lines prints out the aforementioned information.
-  cat("Effective degrees of freedom:",m$edf,"   Coefficients:",
+  cat("Effective degrees of freedom:", m$edf, "   Coefficients:",
       m$number.of.coefficients, "\n")
-  cat("residual std dev:",m$sig2^0.5,"   r-squared:",m$r2, "   GCV:", m$gcv)
+  cat("residual std dev:", m$sig2^0.5, "   r-squared:", m$r2, "   GCV:", m$gcv)
   
   print_list<-list(m$gcv, m$edf, m$r2)
   invisible(print_list)
@@ -127,11 +177,11 @@ print.pspline<- function(m){
 
 
 predict.pspline <- function(m, x, se = TRUE){
-  #   The following defines a method function predict() for the class 'pspline'.
+  #   The following defines a method function predict() for the class "pspline".
   #   It takes the argument se = TRUE/FALSE depending on the user if he/she 
   # wants to obtain the standard error alongside the predicted value.
   #   The prediction is made using the estimated coefficients from m, belonging 
-  # to the class 'pspline', and a new set of x values.
+  # to the class "pspline", and a new set of x values.
   #   The new x data vector is first transformed into an Xp matrix with the
   # number of observation of x as its number of row, and the number of column as
   # the same as the number of coefficients. This Xp matrix is computed the same
@@ -188,7 +238,7 @@ predict.pspline <- function(m, x, se = TRUE){
 
 plot.pspline <- function(m){
   #   The following creates a method function plot() that produces three plots 
-  # for the results to be obtained from the estimation done in class 'pspline'.
+  # for the results to be obtained from the estimation done in class "pspline".
   #   The first plot produces a scatter plot of the original y data against 
   # x data, and on top of it draws an estimated smooth function line. 
   # This plot also has dotted blue line that represents the 95% confidence 
@@ -205,8 +255,13 @@ plot.pspline <- function(m){
   # Create empty vectors to later save the upper and lower bound of the 
   # confidence interval for the fitted value.
   
-  x_4 <- seq(min(m$x), max(m$x), by=0.1)
-  # Equally spaced 
+  x_4 <- seq(min(m$x), max(m$x), by = 0.1)
+  # A new x vector is created to make the x data equally spaced and distributed
+  # ranging from the smallest and largest value as the original data. This step
+  # is to ensure that the plot can plot out the estimated smooth functions based
+  # on the coefficients even if the given x-vector has most of its data points 
+  # concentrated on a certain region, which can cause the smooth line to look
+  # rather sharply angled when plotted.
   
   P <- predict.pspline(m, x_4)
   # Use the previously defined method function of predict() to estimate

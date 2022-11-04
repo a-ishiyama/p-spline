@@ -1,8 +1,8 @@
 # Name: Akira Ishiyama
 # ID: s2445245
 
-#   The following codes produce a class and related useful method function for
-# estimating a smoothing function with basis expansion and penalties.
+#   The following codes produce a class "pspline" and related useful method 
+# function for estimating smoothing function with basis expansion and penalties.
 #   When given a set of observation containing explanatory variable x and 
 # explained variable y, the user of this class can set their desired order for 
 # B-spline basis function, to approximate the smooth function using basis
@@ -14,7 +14,8 @@
 # vary smoothly, instead of capturing random noises and turning into a rather 
 # wiggly fit. This class function will automatically selects the best smoothing
 # parameter (the penalty), by searching for the optimal value based on the 
-# generalised cross validation criterion. 
+# generalised cross validation criterion. Some matrix decomposition methods are
+# used along to achieve an efficient computation.
 #   The class pspline comes with three method function, the first being print().
 # This method function prints some of the crucial information to be obtained
 # by using the class pspline, such as the residual standard deviation and 
@@ -23,7 +24,10 @@
 # fitted values using the estimated coefficients from pspline and a new set of 
 # x observation data. Depending on the users' need, this method function can 
 # also return the standard errors of the fitted values.
-#   The plot() method function enables the user to check the assumption
+#   The plot() method function enables the user to plot the original x, y data
+# with the fitted smooth line and its 95% confidence interval. It also allows 
+# the user to check the assumption made to validate the estimation, namely the 
+# zero mean of the residual and its normality. 
 
 
 
@@ -303,9 +307,3 @@ plot.pspline <- function(m){
   # interval,and the x observations (x).
 }
 
-
-library(MASS)
-x<-mcycle[,1]
-y<-mcycle[,2]
-demo <-pspline(x,y)
-#print,predict,plot

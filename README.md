@@ -1,8 +1,9 @@
 # Smoothing with basis expansions and penalties
 Author: Akira Ishiyama
+
 This is a repo for the individual project of the module 'Statistical Programming'.
 
-  The following codes produce a class "pspline" and related useful method
+  The R codes produce a class "pspline" and related useful method
 function for estimating smoothing function with basis expansion and penalties.
   When given a set of observation containing explanatory variable x and
 explained variable y, the user of this class can set their desired order for
